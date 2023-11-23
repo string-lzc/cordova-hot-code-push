@@ -12,6 +12,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import android.os.Handler;
 
 /**
  * Created by Nikolay Demyankov on 21.07.15.
@@ -19,7 +20,6 @@ import java.io.OutputStream;
  * Helper class to work with file system.
  */
 public class FilesUtility {
-
     /**
      * Delete object at the given location.
      * If it is a folder - it will be deleted recursively will all content.

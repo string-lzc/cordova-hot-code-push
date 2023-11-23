@@ -5,6 +5,7 @@ import android.util.Log;
 import com.nordnetab.chcp.main.model.ManifestFile;
 import com.nordnetab.chcp.main.utils.FilesUtility;
 import com.nordnetab.chcp.main.utils.MD5;
+import com.nordnetab.chcp.main.utils.ProgressCallback;
 import com.nordnetab.chcp.main.utils.Paths;
 import com.nordnetab.chcp.main.utils.URLConnectionHelper;
 import com.nordnetab.chcp.main.utils.URLUtility;
@@ -20,6 +21,8 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
+
 
 /**
  * Created by Nikolay Demyankov on 22.07.15.
@@ -27,6 +30,7 @@ import java.util.Map;
  * Helper class to download files.
  */
 public class FileDownloader {
+
 
     /**
      * Download list of files.
@@ -44,11 +48,12 @@ public class FileDownloader {
     public static void downloadFiles(final String downloadFolder,
                                      final String contentFolderUrl,
                                      final List<ManifestFile> files,
-                                     final Map<String, String> requestHeaders) throws Exception {
+                                     final Map<String, String> requestHeaders,
+                                     final ProgressCallback progressCallback) throws Exception {
         for (ManifestFile file : files) {
             String fileUrl = URLUtility.construct(contentFolderUrl, file.name);
             String filePath = Paths.get(downloadFolder, file.name);
-            download(fileUrl, filePath, file.hash, requestHeaders);
+            download(fileUrl, filePath, file.hash, requestHeaders, progressCallback);
         }
     }
 
@@ -63,7 +68,8 @@ public class FileDownloader {
     public static void download(final String urlFrom,
                                 final String filePath,
                                 final String checkSum,
-                                final Map<String, String> requestHeaders) throws Exception {
+                                final Map<String, String> requestHeaders,
+                                final ProgressCallback progressCallback) throws Exception {
         Log.d("CHCP", "Loading file: " + urlFrom);
         final MD5 md5 = new MD5();
 
@@ -78,9 +84,27 @@ public class FileDownloader {
 
         final byte data[] = new byte[1024];
         int count;
+        long downloadedBytes = 0;
+        long totalBytes = connection.getContentLength(); // 获取总字节数
+
+        // final int progressThreshold = 1024 * 1024; // 阈值为1MB
+        final int progressThreshold = 100; // 阈值为100KB
+        int progressCount = progressThreshold;
+        Log.e("CHCP", "totalBytes: " + totalBytes);
         while ((count = input.read(data)) != -1) {
             output.write(data, 0, count);
             md5.write(data, count);
+            downloadedBytes += count;
+            
+            if (totalBytes > 0) {
+                if (downloadedBytes >= progressCount) {
+                    float progress = (float) downloadedBytes / totalBytes * 100; // 计算下载进度
+                    Map<String, Object> progressData = new HashMap<String, Object>();
+                    progressData.put("MSG_DOWNLOAD_PROGRESS", progress);
+                    progressCallback.onProgressUpdate(progressData);
+                    progressCount += progressThreshold;
+                }
+            }
         }
 
         output.flush();

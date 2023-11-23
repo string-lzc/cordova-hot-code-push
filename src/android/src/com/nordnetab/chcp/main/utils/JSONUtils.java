@@ -38,4 +38,11 @@ public class JSONUtils {
         return map;
     }
 
+    public static Map<String, Object> toObjectMap(final String key, final Object content) {
+        Map<String, Object> mapData = new HashMap<String, Object>();
+        mapData.put(key, content);
+        return mapData;
+    }
+    
+
 }

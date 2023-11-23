@@ -23,6 +23,8 @@ import com.nordnetab.chcp.main.storage.ContentManifestStorage;
 import com.nordnetab.chcp.main.storage.IObjectFileStorage;
 import com.nordnetab.chcp.main.utils.FilesUtility;
 import com.nordnetab.chcp.main.utils.URLUtility;
+import com.nordnetab.chcp.main.utils.ProgressCallback;
+import com.nordnetab.chcp.main.utils.JSONUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -49,22 +51,25 @@ class UpdateLoaderWorker implements WorkerTask {
     private ContentManifest oldManifest;
 
     private WorkerEvent resultEvent;
+    private ProgressCallback progressCallback;
 
     /**
      * Constructor.
      *
      * @param request download request
      */
-    UpdateLoaderWorker(final UpdateDownloadRequest request) {
+    UpdateLoaderWorker(final UpdateDownloadRequest request, final ProgressCallback callback) {
         applicationConfigUrl = request.getConfigURL();
         appNativeVersion = request.getCurrentNativeVersion();
         filesStructure = request.getCurrentReleaseFileStructure();
         requestHeaders = request.getRequestHeaders();
+        progressCallback = callback;
     }
 
     @Override
     public void run() {
-        Log.d("CHCP", "Starting loader worker ");
+        progressCallback.onProgressUpdate(JSONUtils.toObjectMap("MSG_CHP_START", "Starting loader worker"));
+        Log.d("CHCP", "Starting loader worker!");
         // initialize before running
         if (!init()) {
             return;
@@ -83,6 +88,7 @@ class UpdateLoaderWorker implements WorkerTask {
             setErrorResult(ChcpError.NEW_APPLICATION_CONFIG_IS_INVALID, null);
             return;
         }
+
 
         // check if there is a new content version available
         if (newContentConfig.getReleaseVersion().equals(oldAppConfig.getContentConfig().getReleaseVersion())) {
@@ -109,27 +115,33 @@ class UpdateLoaderWorker implements WorkerTask {
             manifestStorage.storeInFolder(newContentManifest, filesStructure.getWwwFolder());
             appConfigStorage.storeInFolder(newAppConfig, filesStructure.getWwwFolder());
             setNothingToUpdateResult(newAppConfig);
-
+            progressCallback.onProgressUpdate(JSONUtils.toObjectMap("MSG_CHP_NOTHING_TO_UPDATE", "There is nothing to update"));
             return;
         }
+        progressCallback.onProgressUpdate(JSONUtils.toObjectMap("MSG_CHP_HAVE_UPDATE", "There is an update on server"));
 
         // switch file structure to new release
         filesStructure.switchToRelease(newAppConfig.getContentConfig().getReleaseVersion());
 
         recreateDownloadFolder(filesStructure.getDownloadFolder());
-
         // download files
-        boolean isDownloaded = downloadNewAndChangedFiles(newContentConfig.getContentUrl(), diff);
+        boolean isDownloaded = downloadNewAndChangedFiles(newContentConfig.getContentUrl(), diff, new ProgressCallback(){
+            @Override
+            public void onProgressUpdate(Map<String, Object> progress) {
+                progressCallback.onProgressUpdate(progress);
+            }
+        });
         if (!isDownloaded) {
             cleanUp();
             setErrorResult(ChcpError.FAILED_TO_DOWNLOAD_UPDATE_FILES, newAppConfig);
             return;
         }
-
+        progressCallback.onProgressUpdate(JSONUtils.toObjectMap("MSG_CHP_STORE_FOLDER", "Store in folder"));
         // store configs
         manifestStorage.storeInFolder(newContentManifest, filesStructure.getDownloadFolder());
         appConfigStorage.storeInFolder(newAppConfig, filesStructure.getDownloadFolder());
-
+        
+        progressCallback.onProgressUpdate(JSONUtils.toObjectMap("MSG_CHP_ENDUP_UPDATING", "End up updating"));
         // notify that we are done
         setSuccessResult(newAppConfig);
 
@@ -215,11 +227,11 @@ class UpdateLoaderWorker implements WorkerTask {
      * @param diff       manifest difference from which we will know, what files to download
      * @return <code>true</code> if files are loaded; <code>false</code> - otherwise
      */
-    private boolean downloadNewAndChangedFiles(final String contentUrl, final ManifestDiff diff) {
+    private boolean downloadNewAndChangedFiles(final String contentUrl, final ManifestDiff diff, final ProgressCallback progressCallback) {
         final List<ManifestFile> downloadFiles = diff.getUpdateFiles();
         boolean isFinishedWithSuccess = true;
         try {
-            FileDownloader.downloadFiles(filesStructure.getDownloadFolder(), contentUrl, downloadFiles, requestHeaders);
+            FileDownloader.downloadFiles(filesStructure.getDownloadFolder(), contentUrl, downloadFiles, requestHeaders, progressCallback);
         } catch (Exception e) {
             e.printStackTrace();
             isFinishedWithSuccess = false;

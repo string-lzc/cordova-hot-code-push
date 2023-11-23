@@ -20,6 +20,7 @@ var exec = require('cordova/exec'),
 // Called when Cordova is ready for work.
 // Here we will send default callback to the native side through which it will send to us different events.
 channel.onCordovaReady.subscribe(function() {
+  console.log('cordova is ready?');
   ensureCustomEventExists();
   exec(nativeCallback, null, PLUGIN_NAME, pluginNativeMethod.INITIALIZE, []);
 });
@@ -127,13 +128,15 @@ function broadcastEventFromNative(nativeMessage) {
   var params = {};
   if (nativeMessage.error != null) {
     params.error = nativeMessage.error;
+  } else {
+    params = nativeMessage;
   }
-
   var chcpEvent = new CustomEvent(nativeMessage.action, {
     'detail': params
   });
   document.dispatchEvent(chcpEvent);
 }
+
 
 // endregion
 
@@ -178,6 +181,7 @@ var chcp = {
     NOTHING_TO_UPDATE: 'chcp_nothingToUpdate',
     UPDATE_LOAD_FAILED: 'chcp_updateLoadFailed',
     UPDATE_IS_READY_TO_INSTALL: 'chcp_updateIsReadyToInstall',
+    FILE_DOWNLOAD_PROGRESS: 'chcp_fileDownloadProgress',
 
     BEFORE_UPDATE_INSTALLATION: 'chcp_beforeInstall',
     UPDATE_INSTALLATION_FAILED: 'chcp_updateInstallFailed',

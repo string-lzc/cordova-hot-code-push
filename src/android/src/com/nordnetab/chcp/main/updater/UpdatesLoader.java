@@ -2,6 +2,7 @@ package com.nordnetab.chcp.main.updater;
 
 import com.nordnetab.chcp.main.model.ChcpError;
 import com.nordnetab.chcp.main.model.PluginFilesStructure;
+import com.nordnetab.chcp.main.utils.ProgressCallback;
 
 import org.greenrobot.eventbus.EventBus;
 
@@ -32,7 +33,7 @@ public class UpdatesLoader {
      * @param request download request
      * @return <code>ChcpError.NONE</code> if download has started; otherwise - error details
      */
-    public static ChcpError downloadUpdate(final UpdateDownloadRequest request) {
+    public static ChcpError downloadUpdate(final UpdateDownloadRequest request, final ProgressCallback callback) {
         // if download already in progress - exit
         if (isExecuting) {
             return ChcpError.DOWNLOAD_ALREADY_IN_PROGRESS;
@@ -45,7 +46,7 @@ public class UpdatesLoader {
 
         isExecuting = true;
 
-        final UpdateLoaderWorker task = new UpdateLoaderWorker(request);
+        final UpdateLoaderWorker task = new UpdateLoaderWorker(request, callback);
         executeTask(task);
 
         return ChcpError.NONE;

@@ -36,6 +36,7 @@ import com.nordnetab.chcp.main.utils.AssetsHelper;
 import com.nordnetab.chcp.main.utils.CleanUpHelper;
 import com.nordnetab.chcp.main.utils.Paths;
 import com.nordnetab.chcp.main.utils.VersionHelper;
+import com.nordnetab.chcp.main.utils.JSONUtils;
 import com.nordnetab.chcp.main.view.AppUpdateRequestDialog;
 
 import org.apache.cordova.CallbackContext;
@@ -55,6 +56,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.nordnetab.chcp.main.utils.ProgressCallback;
 
 /**
  * Created by Nikolay Demyankov on 23.07.15.
@@ -501,7 +503,14 @@ public class HotCodePushPlugin extends CordovaPlugin {
                 .setRequestHeaders(requestHeaders)
                 .build();
 
-        final ChcpError error = UpdatesLoader.downloadUpdate(request);
+        final ChcpError error = UpdatesLoader.downloadUpdate(request, new ProgressCallback() {
+           @Override
+            public void onProgressUpdate(Map<String, Object> progress) {
+                Log.e("CHCP", "PROGRESS:"+progress.toString());
+                sendMessageToDefaultCallback(PluginResultHelper.createPluginResult("MSG_FROM_HCP_NATIVE", progress, null));
+            }
+
+        });
         if (error != ChcpError.NONE) {
             if (jsCallback != null) {
                 PluginResult errorResult = PluginResultHelper.createPluginResult(UpdateDownloadErrorEvent.EVENT_NAME, null, error);
@@ -759,6 +768,10 @@ public class HotCodePushPlugin extends CordovaPlugin {
     public void onEvent(NothingToUpdateEvent event) {
         Log.d("CHCP", "Nothing to update");
 
+        sendMessageToDefaultCallback(PluginResultHelper.createPluginResult("MSG_FROM_HCP_NATIVE", 
+            JSONUtils.toObjectMap("MSG_CHP_NOTHING_TO_UPDATE_AND_RELOAD", "Nothing to update and reload")
+        , null));
+
         PluginResult jsResult = PluginResultHelper.pluginResultFromEvent(event);
 
         //notify JS
@@ -766,7 +779,6 @@ public class HotCodePushPlugin extends CordovaPlugin {
             downloadJsCallback.sendPluginResult(jsResult);
             downloadJsCallback = null;
         }
-
         sendMessageToDefaultCallback(jsResult);
     }
 

@@ -1,9 +1,9 @@
 {
   "name": "cordova-hot-code-push-plugin",
-  "version": "1.5.3",
+  "version": "1.5.22",
   "description": "Cordova plugin to perform code updates on the fly",
   "cordova": {
-    "id": "cordova-hot-code-push-plugin",
+    "id": "senrui-cordova-hot-code-push-plugin",
     "platforms": [
       "android",
       "ios"
